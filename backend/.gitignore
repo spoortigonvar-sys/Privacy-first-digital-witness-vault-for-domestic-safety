@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+.env
+
+# Uploaded evidence
+backend/uploads/
+backend/encrypted/
+
+# Firebase
+backend/firebase-key.json
+
+# Secret key
+backend/secret.key
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
