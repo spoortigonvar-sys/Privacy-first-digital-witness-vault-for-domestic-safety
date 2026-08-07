@@ -15,14 +15,15 @@ def init_db():
     # Evidence Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS evidence(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        evidence_id TEXT,
-        filename TEXT,
-        sha256 TEXT,
-        upload_time TEXT,
-        storage_path TEXT,
-        status TEXT
-    )
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    evidence_id TEXT,
+    filename TEXT,
+    sha256 TEXT,
+    upload_time TEXT,
+    storage_path TEXT,
+    status TEXT
+)
     """)
 
     # Users Table
@@ -42,23 +43,23 @@ def init_db():
 # -------------------------------
 # Evidence Functions
 # -------------------------------
-
-def insert_evidence(evidence_id, filename, sha256, upload_time, storage_path, status):
+def insert_evidence(user_id, evidence_id, filename, sha256, upload_time, storage_path, status):
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
     INSERT INTO evidence
-    (evidence_id, filename, sha256, upload_time, storage_path, status)
-    VALUES (?, ?, ?, ?, ?, ?)
+    (user_id, evidence_id, filename, sha256, upload_time, storage_path, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
     """, (
-        evidence_id,
-        filename,
-        sha256,
-        upload_time,
-        storage_path,
-        status
-    ))
+    user_id,
+    evidence_id,
+    filename,
+    sha256,
+    upload_time,
+    storage_path,
+    status
+))
 
     conn.commit()
     conn.close()
@@ -96,14 +97,14 @@ def get_user(email):
 
     return user
 
-
 def login_user(email, password):
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT * FROM users
-    WHERE email=? AND password=?
+    SELECT id, fullname, email
+    FROM users
+    WHERE email = ? AND password = ?
     """, (email, password))
 
     user = cursor.fetchone()
@@ -114,16 +115,32 @@ def login_user(email, password):
 
 def get_evidence_by_id(evidence_id):
     conn = get_connection()
-    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    cursor.execute(
-        "SELECT * FROM evidence WHERE evidence_id = ?",
-        (evidence_id,)
-    )
+    cursor.execute("""
+    SELECT
+        evidence_id,
+        filename,
+        sha256,
+        upload_time,
+        storage_path,
+        status
+    FROM evidence
+    WHERE evidence_id = ?
+    """, (evidence_id,))
 
-    evidence = cursor.fetchone()
+    row = cursor.fetchone()
 
     conn.close()
 
-    return evidence
+    if row is None:
+        return None
+
+    return {
+        "evidence_id": row[0],
+        "filename": row[1],
+        "sha256": row[2],
+        "upload_time": row[3],
+        "storage_path": row[4],
+        "status": row[5],
+    }
