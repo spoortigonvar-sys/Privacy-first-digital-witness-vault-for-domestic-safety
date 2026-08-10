@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'utils/app_theme.dart';
 import 'models/evidence_model.dart';
 
+import 'screens/calculator_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -12,6 +13,7 @@ import 'screens/evidence_history_screen.dart';
 import 'screens/evidence_detail_screen.dart';
 import 'screens/verify_evidence_screen.dart';
 
+import 'stealth/stealth_controller.dart';
 import 'utils/constants.dart';
 
 void main() {
@@ -24,12 +26,21 @@ class DigitalWitnessVaultApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Digital Witness Vault',
+      title: 'Calculator',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
 
-      // TEMPORARY: Start directly from Login Screen
-      home: const LoginScreen(),
+      // Phase 8: shared with StealthController so the long-press-vault
+      // and (Phase 9) panic-exit gestures can navigate without needing
+      // their own BuildContext, and so panic exit can pop back to the
+      // calculator from any depth in the vault's navigation stack.
+      navigatorKey: StealthController.instance.navigatorKey,
+
+      // The app's real entry point is the calculator, not the login
+      // screen — this also satisfies the "splash screen removed,
+      // calculator opens immediately" requirement, since there's no
+      // intermediate screen between app launch and the calculator.
+      home: const CalculatorScreen(),
 
       onGenerateRoute: (settings) {
         switch (settings.name) {

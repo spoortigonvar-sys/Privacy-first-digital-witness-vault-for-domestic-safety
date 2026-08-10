@@ -21,6 +21,11 @@ dependencies:
   camera: ^0.11.0+2
   permission_handler: ^11.3.1
 
+  # Keeps the screen awake while a stealth recording is active, so an
+  # idle-timeout screen-off doesn't background the app (and with it, the
+  # camera) mid-recording. No special permissions required on Android.
+  wakelock_plus: ^1.3.0
+
   # Shared preferences (local storage / session)
   shared_preferences: ^2.2.3
 
@@ -41,6 +46,20 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+
+  # Generates the mipmap launcher icons in every required density from a
+  # single source image. Run `flutter pub run flutter_launcher_icons`
+  # locally after dropping a calculator-style square PNG (min 512x512,
+  # no transparency needed) at the path below — I can't generate the
+  # actual icon image or run this tool from this sandbox (no Flutter
+  # toolchain here). Until then, the launcher icon is still the default
+  # Flutter icon, even though the label now correctly reads "Calculator".
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/app_icon.png"
 
 flutter:
   uses-material-design: true

@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:permission_handler/permission_handler.dart';
-import '../services/api_service.dart';
 import '../models/evidence_model.dart';
 import '../utils/app_theme.dart';
+import '../stealth/recording_service.dart';
 
 /// Mobile equivalent of the website's Emergency Recorder
 /// (frontend/recorder.html + frontend/js/recorder.js).
@@ -15,6 +13,14 @@ import '../utils/app_theme.dart';
 /// This screen does the same thing using the device camera: start camera
 /// preview, record video+audio, stop, then upload the resulting file to
 /// the same /upload endpoint — preserving the exact same backend contract.
+///
+/// Phase 6: the camera/record/upload logic that used to live directly in
+/// this State object has been extracted into RecordingService, which is
+/// now shared with the stealth triple-tap trigger on the calculator
+/// screen. This screen's behavior is unchanged from the user's point of
+/// view — it just delegates instead of owning the CameraController
+/// itself, so there is exactly one implementation of "record and upload"
+/// in the app, not two.
 class RecorderScreen extends StatefulWidget {
   const RecorderScreen({super.key});
 
@@ -23,8 +29,7 @@ class RecorderScreen extends StatefulWidget {
 }
 
 class _RecorderScreenState extends State<RecorderScreen> {
-  CameraController? _controller;
-  List<CameraDescription> _cameras = [];
+  final RecordingService _service = RecordingService.instance;
 
   bool _cameraReady = false;
   String _statusText = 'Camera not started';
@@ -44,46 +49,23 @@ class _RecorderScreenState extends State<RecorderScreen> {
   }
 
   Future<void> _startCamera() async {
-    // Camera + microphone permission (equivalent to the browser's
-    // getUserMedia({video:true, audio:true}) permission prompt).
-    final camStatus = await Permission.camera.request();
-    final micStatus = await Permission.microphone.request();
+    final ok = await _service.ensureInitialized();
 
-    if (!camStatus.isGranted || !micStatus.isGranted) {
+    if (!mounted) return;
+
+    if (!ok) {
+      // ensureInitialized() covers both "permission denied" and "no
+      // camera available" — RecordingService doesn't currently surface
+      // which one, so this message covers both, matching the original
+      // screen's behavior of a single denial message either way.
       setState(() => _statusText = '❌ Camera Permission Denied');
       return;
     }
 
-    try {
-      _cameras = await availableCameras();
-      if (_cameras.isEmpty) {
-        setState(() => _statusText = '❌ No camera found on this device');
-        return;
-      }
-
-      final backCamera = _cameras.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.back,
-        orElse: () => _cameras.first,
-      );
-
-      final controller = CameraController(
-        backCamera,
-        ResolutionPreset.high,
-        enableAudio: true,
-      );
-
-      await controller.initialize();
-
-      if (!mounted) return;
-
-      setState(() {
-        _controller = controller;
-        _cameraReady = true;
-        _statusText = '✅ Camera Ready';
-      });
-    } catch (e) {
-      setState(() => _statusText = '❌ Camera Permission Denied');
-    }
+    setState(() {
+      _cameraReady = true;
+      _statusText = '✅ Camera Ready';
+    });
   }
 
   void _startTimer() {
@@ -105,7 +87,7 @@ class _RecorderScreenState extends State<RecorderScreen> {
   }
 
   Future<void> _startRecording() async {
-    if (_controller == null || !_cameraReady) {
+    if (!_cameraReady) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Camera not ready.'),
@@ -115,18 +97,21 @@ class _RecorderScreenState extends State<RecorderScreen> {
       return;
     }
 
-    try {
-      await _controller!.startVideoRecording();
+    final started = await _service.start();
+
+    if (!mounted) return;
+
+    if (started) {
       _startTimer();
       setState(() {
         _isRecording = true;
         _statusText = '🔴 Recording...';
         _lastResult = null;
       });
-    } catch (e) {
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('MediaRecorder Error: $e'),
+        const SnackBar(
+          content: Text('MediaRecorder Error: could not start recording'),
           backgroundColor: AppTheme.danger,
         ),
       );
@@ -134,74 +119,58 @@ class _RecorderScreenState extends State<RecorderScreen> {
   }
 
   Future<void> _stopRecording() async {
-    if (_controller == null || !_controller!.value.isRecordingVideo) return;
+    if (!_service.isRecording) return;
 
     _stopTimer();
-    setState(() => _isRecording = false);
-
-    try {
-      final XFile videoFile = await _controller!.stopVideoRecording();
-      await _uploadRecording(File(videoFile.path));
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Upload Error: $e'),
-          backgroundColor: AppTheme.danger,
-        ),
-      );
-      setState(() => _statusText = '❌ Upload Failed');
-    }
-  }
-
-  Future<void> _uploadRecording(File file) async {
     setState(() {
+      _isRecording = false;
       _isUploading = true;
       _statusText = '⬆ Uploading...';
     });
 
-    try {
-      final result = await ApiService.uploadEvidence(file);
+    final evidence = await _service.stopAndUpload();
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      if (result['success'] == true) {
-        setState(() {
-          _lastResult = result['data'] as EvidenceModel;
-          _statusText = '✅ Upload Successful';
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Upload Successful'),
-            backgroundColor: AppTheme.success,
-          ),
-        );
-      } else {
-        setState(() => _statusText = '❌ Upload Failed');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Upload Failed. Status error.'),
-            backgroundColor: AppTheme.danger,
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _statusText = '❌ Upload Failed');
+    if (evidence != null) {
+      setState(() {
+        _lastResult = evidence;
+        _statusText = '✅ Upload Successful';
+        _isUploading = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Upload Error: $e'),
+        const SnackBar(
+          content: Text('Upload Successful'),
+          backgroundColor: AppTheme.success,
+        ),
+      );
+    } else {
+      setState(() {
+        _statusText = '❌ Upload Failed';
+        _isUploading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Upload Failed. Please try again.'),
           backgroundColor: AppTheme.danger,
         ),
       );
-    } finally {
-      if (mounted) setState(() => _isUploading = false);
     }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _controller?.dispose();
+    // Deliberately NOT calling _service.release() here. RecordingService
+    // is a shared singleton also used by the stealth triple-tap trigger
+    // on the calculator screen (Phase 6+), which can outlive this
+    // screen's lifecycle. A per-screen widget tearing down a resource it
+    // doesn't exclusively own would risk killing an in-progress stealth
+    // recording started elsewhere. The camera is released explicitly by
+    // whichever flow is actually done with it (currently: nothing does
+    // this automatically, matching the original screen's simple
+    // lifecycle — revisit if profiling shows the camera being held open
+    // longer than desired).
     super.dispose();
   }
 
@@ -230,8 +199,8 @@ class _RecorderScreenState extends State<RecorderScreen> {
                   border: Border.all(color: AppTheme.accent, width: 2),
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: _cameraReady && _controller != null
-                    ? CameraPreview(_controller!)
+                child: _cameraReady && _service.controller != null
+                    ? CameraPreview(_service.controller!)
                     : const Center(
                         child: CircularProgressIndicator(
                           color: AppTheme.accent,
