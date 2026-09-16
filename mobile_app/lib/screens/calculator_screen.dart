@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
-
+import 'my_evidence_screen.dart';
+import '../services/api_service.dart';
 import '../stealth/stealth_controller.dart';
 import '../stealth/triple_tap_detector.dart';
 import '../stealth/recording_service.dart';
@@ -76,7 +77,31 @@ class CalculatorScreen extends StatefulWidget {
 class _CalculatorScreenState extends State<CalculatorScreen>
     with WidgetsBindingObserver {
   // ---- Calculator engine state ----
+  Future<void> _checkVaultCode() async {
+  if (_display.length != 6 ||
+      !RegExp(r'^\d{6}$').hasMatch(_display)) {
+    return;
+  }
+
+  final code = _display;
+
+  final result = await ApiService.unlockVault(code);
+
+  if (!mounted) return;
+
+  if (result['success'] == true) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const MyEvidenceScreen(),
+      ),
+    );
+
+    _onAllClearPressed();
+  }
+}
   String _display = '0';
+  static const String _vaultAccessCode = '2580';
   double? _storedValue;
   String? _pendingOperator;
   bool _shouldResetDisplay = false;
@@ -103,9 +128,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // onLongPress, because the built-in recognizer fires after Flutter's
   // default ~500ms — the spec calls for a full 3 seconds, which needs a
   // manually-driven timer instead.
-  static const Duration _vaultLongPressDuration = Duration(seconds: 3);
-  Timer? _vaultLongPressTimer;
-  bool _vaultLongPressFired = false;
+  
 
   // Phase 10: prevents rapid re-triggers of the stealth gesture from
   // flapping StealthController.isRecording (and firing repeated haptic
@@ -124,13 +147,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     WidgetsBinding.instance.addObserver(this);
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _tripleTapDetector.reset();
-    _vaultLongPressTimer?.cancel();
-    super.dispose();
-  }
+ @override
+void dispose() {
+  WidgetsBinding.instance.removeObserver(this);
+  _tripleTapDetector.reset();
+  super.dispose();
+}
 
   /// Phase 7: Android gives no app the ability to keep recording once
   /// truly backgrounded (home button / app switcher) — the camera
@@ -198,16 +220,11 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// it (registered via onTapUp/onTapCancel below) and the touch is
   /// treated as a normal tap instead — feeding the triple-tap detector,
   /// same as always.
-  void _startVaultLongPressTimer() {
-    _vaultLongPressTimer?.cancel();
-    _vaultLongPressFired = false;
-    _vaultLongPressTimer = Timer(_vaultLongPressDuration, _openVault);
-  }
+  
 
-  void _cancelVaultLongPressTimer() {
-    _vaultLongPressTimer?.cancel();
-    _vaultLongPressTimer = null;
-  }
+
+
+ 
 
   /// Fires once the 3-second hold completes. Opens the existing,
   /// unmodified LoginScreen — no vibration, no visual change beforehand,
@@ -216,12 +233,12 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   /// eventual finger-lift would otherwise also fire gets swallowed
   /// instead of registering as an extra tap on the triple-tap detector.
   void _openVault() {
-    _vaultLongPressFired = true;
-    _vaultLongPressTimer = null;
-    StealthController.instance.navigatorKey.currentState?.push(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
-  }
+  StealthController.instance.navigatorKey.currentState?.push(
+    MaterialPageRoute(
+      builder: (_) => const LoginScreen(),
+    ),
+  );
+}
 
   /// Panic exit (Phase 9): long-press on the C button.
   ///
@@ -268,20 +285,25 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   // ------------------------------------------------------------------
 
   void _onDigitPressed(String digit) {
-    setState(() {
-      if (_isError) {
-        // Any digit after an error starts a fresh entry, like a real
-        // calculator, rather than appending onto "Error".
-        _clearErrorState();
-      }
-      if (_display == '0' || _shouldResetDisplay) {
-        _display = digit;
-        _shouldResetDisplay = false;
-      } else if (_digitCount(_display) < _maxInputLength) {
-        _display = _display + digit;
-      }
-    });
+  setState(() {
+    if (_isError) {
+      _clearErrorState();
+    }
+
+    if (_display == '0' || _shouldResetDisplay) {
+      _display = digit;
+      _shouldResetDisplay = false;
+    } else if (_digitCount(_display) < _maxInputLength) {
+      _display = _display + digit;
+    }
+  });
+
+  // Check the secret vault code after exactly 6 digits.
+  if (_display.length == 6 &&
+      RegExp(r'^\d{6}$').hasMatch(_display)) {
+    _checkVaultCode();
   }
+}
 
   void _onDecimalPressed() {
     setState(() {
@@ -401,7 +423,19 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   }
 
   void _onEqualsPressed() {
-    if (_isError) return;
+  if (_display == _vaultAccessCode) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LoginScreen(),
+      ),
+    );
+
+    _onAllClearPressed();
+    return;
+  }
+
+  if (_isError) return;
 
     final currentValue = double.tryParse(_display) ?? 0;
 
@@ -539,6 +573,9 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+  title: const Text('Calculator'),
+),
       backgroundColor: _bg,
       body: SafeArea(
         child: Column(
@@ -553,44 +590,36 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     );
   }
 
-  Widget _buildDisplay() {
-    return Expanded(
-      flex: 2,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => _startVaultLongPressTimer(),
-        onTapUp: (_) => _cancelVaultLongPressTimer(),
-        onTapCancel: () => _cancelVaultLongPressTimer(),
-        onTap: () {
-          if (_vaultLongPressFired) {
-            // Swallow the tap that follows a completed 3s long-press —
-            // that touch was already handled as the vault-open gesture,
-            // it shouldn't also count toward the triple-tap sequence.
-            _vaultLongPressFired = false;
-            return;
-          }
-          _tripleTapDetector.registerTap();
-        },
-        child: Container(
+ Widget _buildDisplay() {
+  return Expanded(
+    flex: 2,
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        _tripleTapDetector.registerTap();
+      },
+      child: Container(
+        alignment: Alignment.bottomRight,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 28,
+          vertical: 16,
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
           alignment: Alignment.bottomRight,
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.bottomRight,
-            child: Text(
-              _display,
-              style: const TextStyle(
-                color: _displayText,
-                fontSize: 72,
-                fontWeight: FontWeight.w300,
-              ),
+          child: Text(
+            _display,
+            style: const TextStyle(
+              color: _displayText,
+              fontSize: 72,
+              fontWeight: FontWeight.w300,
             ),
           ),
         ),
       ),
-    );
-  }
-
+    ),
+  );
+}
   /// Small MC / MR / M+ / M- row, styled like the memory row on any
   /// standard scientific calculator. Purely conventional — not part of
   /// the stealth gesture set, so it carries no special meaning here.

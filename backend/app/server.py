@@ -8,10 +8,11 @@ from app.config import settings
 from app.routes import health
 from app.routes import upload
 from app.routes import auth
+from app.routes import contacts
 from app.routes.dashboard import router as dashboard_router
 from app.routes import verify
-
-from database.database import init_db
+from app.routes import vault
+from database.database import init_db, migrate_users_table
 
 
 def create_app() -> FastAPI:
@@ -35,14 +36,18 @@ def create_app() -> FastAPI:
 
     app.include_router(dashboard_router)
     app.include_router(verify.router)
+    app.include_router(vault.router)
 
     # Create database tables automatically
+        # Create database tables automatically
     init_db()
+    migrate_users_table()
 
     # Routes
     app.include_router(health.router)
     app.include_router(upload.router)
     app.include_router(auth.router)
+    app.include_router(contacts.router)
 
     @app.get("/")
     def root():

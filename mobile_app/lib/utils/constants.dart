@@ -3,8 +3,7 @@ class AppConstants {
   // For Android emulator use: http://10.0.2.2:8000
   // For iOS simulator use: http://127.0.0.1:8000
   // For physical device use your machine's local IP: http://192.168.x.x:8000
-  static const String baseUrl = 'http://10.0.2.2:8000';
-
+ static const String baseUrl = "http://10.0.2.2:8000";
   // Route names
   static const String splashRoute = '/';
   static const String loginRoute = '/login';

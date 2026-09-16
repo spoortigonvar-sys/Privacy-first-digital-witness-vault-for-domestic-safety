@@ -1,0 +1,77 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# =========================
+# Secrets
+# =========================
+.env
+*.env
+secret.key
+
+# =========================
+# Database
+# =========================
+*.db
+*.sqlite
+*.sqlite3
+
+# =========================
+# Evidence / media
+# =========================
+backend/uploads/
+backend/encrypted/
+backend/false_gun_detections/
+
+*.mp4
+*.webm
+*.jpg
+*.jpeg
+*.png
+
+# =========================
+# Temporary / test files
+# =========================
+backend.zip
+backend/cloud_test.txt
+backend/test_email.py
+backend/test_gun_model.py
+backend/gun_test_annotated.jpg
+
+# =========================
+# Flutter generated files
+# =========================
+mobile_app/.dart_tool/
+mobile_app/.packages
+mobile_app/build/
+mobile_app/.flutter-plugins
+mobile_app/.flutter-plugins-dependencies
+
+# =========================
+# Android generated files
+# =========================
+mobile_app/android/.gradle/
+mobile_app/android/local.properties
+mobile_app/android/app/debug/
+mobile_app/android/app/profile/
+mobile_app/android/app/release/
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+*.iml
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db

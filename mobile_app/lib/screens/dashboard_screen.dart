@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../models/user_model.dart';
@@ -6,6 +7,7 @@ import '../models/dashboard_model.dart';
 import '../utils/constants.dart';
 import '../utils/app_theme.dart';
 import '../widgets/stat_card.dart';
+import 'emergency_contacts_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -27,9 +29,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadData() async {
     final user = await AuthService.loadUser();
+
     if (user == null) {
       if (mounted) {
-        Navigator.pushReplacementNamed(context, AppConstants.loginRoute);
+        Navigator.pushReplacementNamed(
+          context,
+          AppConstants.loginRoute,
+        );
       }
       return;
     }
@@ -47,8 +53,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _logout() async {
     await AuthService.logout();
+
     if (mounted) {
-      Navigator.pushReplacementNamed(context, AppConstants.loginRoute);
+      Navigator.pushReplacementNamed(
+        context,
+        AppConstants.loginRoute,
+      );
     }
   }
 
@@ -66,7 +76,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.accent))
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: AppTheme.accent,
+              ),
+            )
           : RefreshIndicator(
               onRefresh: _loadData,
               color: AppTheme.accent,
@@ -76,6 +90,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Welcome section
                     Text(
                       'Welcome, ${_user?.fullname ?? ''}',
                       style: const TextStyle(
@@ -84,14 +99,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+
                     const SizedBox(height: 4),
+
                     const Text(
                       'Manage emergency recordings and encrypted evidence from one place.',
-                      style: TextStyle(color: AppTheme.textLight),
+                      style: TextStyle(
+                        color: AppTheme.textLight,
+                      ),
                     ),
+
                     const SizedBox(height: 20),
 
-                    // Stats row
+                    // Statistics
                     Row(
                       children: [
                         Expanded(
@@ -111,7 +131,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ],
                     ),
+
                     const SizedBox(height: 12),
+
                     Row(
                       children: [
                         Expanded(
@@ -133,6 +155,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
 
                     const SizedBox(height: 28),
+
+                    // Quick Actions
                     const Text(
                       'Quick Actions',
                       style: TextStyle(
@@ -141,36 +165,73 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+
                     const SizedBox(height: 12),
 
+                    // Emergency Recorder
                     _DashboardActionCard(
                       icon: Icons.videocam_outlined,
                       title: 'Emergency Recorder',
-                      subtitle: 'Start secure audio and video recording.',
+                      subtitle:
+                          'Start secure audio and video recording.',
                       onTap: () => Navigator.pushNamed(
-                          context, AppConstants.recorderRoute),
+                        context,
+                        AppConstants.recorderRoute,
+                      ),
                     ),
+
+                    // Upload Evidence
                     _DashboardActionCard(
                       icon: Icons.cloud_upload_outlined,
                       title: 'Upload Evidence',
-                      subtitle: 'Start secure evidence upload.',
+                      subtitle:
+                          'Start secure evidence upload.',
                       onTap: () => Navigator.pushNamed(
-                          context, AppConstants.uploadRoute),
+                        context,
+                        AppConstants.uploadRoute,
+                      ),
                     ),
+
+                    // Evidence Vault
                     _DashboardActionCard(
                       icon: Icons.history_outlined,
                       title: 'Evidence Vault',
-                      subtitle: 'View your encrypted recordings.',
+                      subtitle:
+                          'View your encrypted recordings.',
                       onTap: () => Navigator.pushNamed(
-                          context, AppConstants.historyRoute),
+                        context,
+                        AppConstants.historyRoute,
+                      ),
                     ),
+
+                    // Verify Evidence
                     _DashboardActionCard(
                       icon: Icons.verified_outlined,
                       title: 'Verify Evidence',
-                      subtitle: 'Check SHA-256 integrity of a file.',
+                      subtitle:
+                          'Check SHA-256 integrity of a file.',
                       onTap: () => Navigator.pushNamed(
-                          context, AppConstants.verifyRoute),
+                        context,
+                        AppConstants.verifyRoute,
+                      ),
                     ),
+
+                    // Emergency Contacts
+                    _DashboardActionCard(
+                      icon: Icons.people_outline,
+                      title: 'Emergency Contacts',
+                      subtitle:
+                          'Manage people who receive emergency alerts.',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const EmergencyContactsScreen(),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -202,6 +263,7 @@ class _DashboardActionCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
+              // Icon
               Container(
                 width: 48,
                 height: 48,
@@ -209,26 +271,47 @@ class _DashboardActionCard extends StatelessWidget {
                   color: AppTheme.primaryDark,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: AppTheme.accent),
+                child: Icon(
+                  icon,
+                  color: AppTheme.accent,
+                ),
               ),
+
               const SizedBox(width: 16),
+
+              // Text
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+
                     const SizedBox(height: 2),
-                    Text(subtitle,
-                        style: const TextStyle(
-                            color: AppTheme.textLight, fontSize: 12)),
+
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: AppTheme.textLight,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppTheme.textLight),
+
+              // Arrow
+              const Icon(
+                Icons.chevron_right,
+                color: AppTheme.textLight,
+              ),
             ],
           ),
         ),

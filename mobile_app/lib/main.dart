@@ -28,18 +28,11 @@ class DigitalWitnessVaultApp extends StatelessWidget {
     return MaterialApp(
       title: 'Calculator',
       debugShowCheckedModeBanner: false,
+      
       theme: AppTheme.theme,
 
-      // Phase 8: shared with StealthController so the long-press-vault
-      // and (Phase 9) panic-exit gestures can navigate without needing
-      // their own BuildContext, and so panic exit can pop back to the
-      // calculator from any depth in the vault's navigation stack.
       navigatorKey: StealthController.instance.navigatorKey,
 
-      // The app's real entry point is the calculator, not the login
-      // screen — this also satisfies the "splash screen removed,
-      // calculator opens immediately" requirement, since there's no
-      // intermediate screen between app launch and the calculator.
       home: const CalculatorScreen(),
 
       onGenerateRoute: (settings) {
@@ -82,7 +75,9 @@ class DigitalWitnessVaultApp extends StatelessWidget {
           case AppConstants.evidenceDetailRoute:
             final evidence = settings.arguments as EvidenceModel;
             return MaterialPageRoute(
-              builder: (_) => EvidenceDetailScreen(evidence: evidence),
+              builder: (_) => EvidenceDetailScreen(
+                evidence: evidence,
+              ),
             );
         }
 
