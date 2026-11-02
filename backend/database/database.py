@@ -72,6 +72,7 @@ def migrate_users_table():
 # EVIDENCE FUNCTIONS
 # ============================================================
 
+
 def insert_evidence(
     user_id,
     evidence_id,
@@ -84,71 +85,53 @@ def insert_evidence(
     violence_probability=0.0,
     knife_detected=False,
     gun_detected=False,
-    danger_detected=False
+    danger_detected=False,
 ):
-
     conn = get_connection()
-    cursor = conn.cursor()
 
-    cursor.execute("""
-    INSERT INTO evidence
-    (
-        user_id,
-        evidence_id,
-        filename,
-        sha256,
-        upload_time,
-        storage_path,
-        status,
-        violence_detected,
-        violence_probability,
-        knife_detected,
-        gun_detected,
-        danger_detected
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        user_id,
-        evidence_id,
-        filename,
-        sha256,
-        upload_time,
-        storage_path,
-        status,
-        int(violence_detected),
-        float(violence_probability),
-        int(knife_detected),
-        int(gun_detected),
-        int(danger_detected)
-    ))
+    try:
+        cursor = conn.cursor()
 
-    conn.commit()
-    conn.close()
+        cursor.execute("""
+            INSERT INTO evidence (
+                user_id,
+                evidence_id,
+                filename,
+                sha256,
+                upload_time,
+                storage_path,
+                status,
+                violence_detected,
+                violence_probability,
+                knife_detected,
+                gun_detected,
+                danger_detected
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            user_id,
+            evidence_id,
+            filename,
+            sha256,
+            upload_time,
+            storage_path,
+            status,
+            int(violence_detected),
+            float(violence_probability),
+            int(knife_detected),
+            int(gun_detected),
+            int(danger_detected),
+        ))
 
-    conn = get_connection()
-    cursor = conn.cursor()
+        conn.commit()
 
-    cursor.execute("""
-    INSERT INTO evidence
-    (
-        user_id,
-        evidence_id,
-        filename,
-        sha256,
-        upload_time,
-        storage_path,
-        status
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (
-        user_id,
-        evidence_id,
-        filename,
-        sha256,
-        upload_time,
-        storage_path,
-        status
-    ))
+    except Exception:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+
 def init_db():
 
     conn = get_connection()

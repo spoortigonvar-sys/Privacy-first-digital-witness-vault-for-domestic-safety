@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
-
+import 'package:flutter/foundation.dart';
 import '../models/dashboard_model.dart';
 import '../models/evidence_model.dart';
 import '../models/user_model.dart';
@@ -177,34 +177,34 @@ class ApiService {
   // LOGIN
   // ============================================================
 
- static Future<Map<String, dynamic>> login({
+ 
+static Future<Map<String, dynamic>> login({
   required String email,
   required String password,
 }) async {
-  try {
-    print("========== LOGIN DEBUG ==========");
-    print("Base URL: $_base");
-    print("Login URL: $_base/login");
-    print("Email: $email");
+  final url = Uri.parse("$_base/login");
 
+  print("========== LOGIN DEBUG ==========");
+  print("Base URL: $_base");
+  print("Login URL: $url");
+  print("LOGIN METHOD CALLED");
+
+  try {
     final res = await http
         .post(
-          Uri.parse("$_base/login"),
+          url,
           headers: {
             "Content-Type": "application/json",
           },
           body: jsonEncode({
-            "email": email,
+            "email": email.trim(),
             "password": password,
           }),
         )
-        .timeout(
-          const Duration(seconds: 10),
-        );
+        .timeout(const Duration(seconds: 15));
 
     print("LOGIN STATUS: ${res.statusCode}");
     print("LOGIN RESPONSE: ${res.body}");
-    print("=================================");
 
     final data = jsonDecode(res.body);
 
@@ -219,10 +219,9 @@ class ApiService {
       "success": false,
       "message": data["detail"] ?? "Login failed",
     };
-  } catch (e) {
-    print("========== LOGIN ERROR ==========");
-    print(e);
-    print("=================================");
+  } catch (e, stackTrace) {
+    print("LOGIN ERROR: $e");
+    print(stackTrace);
 
     return {
       "success": false,
@@ -231,10 +230,12 @@ class ApiService {
   }
 }
 
+
   // ============================================================
   // UPLOAD EVIDENCE
   // ============================================================
 
+  
   static Future<Map<String, dynamic>> uploadEvidence(
     File file, {
     void Function(double progress)? onProgress,
@@ -267,8 +268,8 @@ class ApiService {
         streamed,
       );
 
-      print("Status: ${response.statusCode}");
-      print("Body: ${response.body}");
+      debugPrint("Status: ${response.statusCode}");
+      debugPrint("Body: ${response.body}");
 
       final data = jsonDecode(response.body);
 
@@ -283,15 +284,18 @@ class ApiService {
         "success": false,
         "message": data["detail"] ?? "Upload failed",
       };
-    } catch (e) {
-      print("Upload Error: $e");
+    } catch (e, stackTrace) {
+      debugPrint("Upload Error: $e");
+      debugPrint("Upload StackTrace: $stackTrace");
 
       return {
         "success": false,
-        "message": "Connection error",
+        "message": "Upload error: $e",
       };
     }
-  }
+  } // IMPORTANT: closes uploadEvidence()
+
+
 
   // ============================================================
   // MIME TYPE
